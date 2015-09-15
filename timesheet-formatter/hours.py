@@ -1,25 +1,37 @@
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 import dateutil.parser
+from tabulate import tabulate
 
-# Read the xml logs
-tree = ET.parse('hours.xml')
-
-# Read the root element
-root = tree.getroot()
 
 class Formatter:
-    def __init__(self):
+    def __init__(self, xml_string):
         # Set up dictionaries
         self.taskdata = {}
         self.datedata = {}
+        self.xml_string = xml_string
+        self.read_xml(self.xml_string)
+
+    def read_xml(self, xml_string):
+
+        # Read the xml logs
+        tree = ET.parse('hours.xml')
+
+        # Read the root element
+        root = tree.getroot()
+
+        for task in root[1]:
+            self.row(task)
+
+
+
 
     def row(self, taskrow):
         # Gets passed a task row
         # Pulls out the start, end and description
-        start =  dateutil.parser.parse(task.find("startDate").text)
-        end = dateutil.parser.parse(task.find("endDate").text)
-        description = task.find("description").text
+        start =  dateutil.parser.parse(taskrow.find("startDate").text)
+        end = dateutil.parser.parse(taskrow.find("endDate").text)
+        description = taskrow.find("description").text
 
         # Calculate time by description
         if not self.taskdata.has_key(taskrow.find("description").text):
@@ -71,20 +83,19 @@ class Formatter:
 
         # Add a 'total' column
         final_table["headers"].append("Total")
+        tabulartable = []
 
         # Print the columns, and try to space them
+        headers = []
         for idx, header in enumerate(final_table["headers"]):
-            if idx == 0:
-                print str(header) + (25 - len(str(header))) * " " ,
-            else: 
-                print str(header) + (12 - len(str(header))) * " " ,
-        
-        print ""
+            headers.append(header)
+
 
         # Print the tasks, and the time spent on a certain date, row by row
         # one task at a time
         for i, task in enumerate(sorted(final_table["tasks"])):
-            print task + (25  - len(task)) * " ",
+            inner = []
+            inner.append(task)
 
             # Find any row time logs for every date
             # Since the data was totaled by date, by task already we can just dump entries
@@ -93,24 +104,17 @@ class Formatter:
                 for row in self.datedata[d]:
                     if row == task:
                         hours = str(self.datedata[d][row])
-                        print hours + ((14 - len(hours)) * " "),
+                        inner.append(hours)
                         printed = True
 
                  # No entry was printed, no work was done on this date for this task
                 if not printed:
-                    print 5 * " " + "-" + 5 * " ",
+                    inner.append("-")
             
             # print the total time spent on a task on a given week
-            print total_by_task[task],
+            inner.append(total_by_task[task])
 
-            print ""
+            tabulartable.append(inner)
 
-
-
-f = Formatter()
-
-for task in root[1]:
-    f.row(task)
-
-f.hours_by_date()
+        print tabulate(tabulartable, headers = headers)
 
