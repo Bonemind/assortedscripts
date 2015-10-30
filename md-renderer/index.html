@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<title>Markdown renderer</title>
+		<link rel="stylesheet" type='text/css' href="/gh-md-css.css">
+	</head>
+	<body>
+		<div id="markdown" class="markdown-body"></div>
+		<style>
+			.markdown-body {
+				min-width: 200px;
+				max-width: 790px;
+				margin: 0 auto;
+				padding: 30px;
+			}
+		</style>
+		<script src="/socket.io/socket.io.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.js"></script>
+		<script>
+			var socket = io();
+			socket.on('update', function(md) {
+				console.log(md);
+				$('#markdown').html(md);
+			});
+		</script>
+	</body>
+</html>
