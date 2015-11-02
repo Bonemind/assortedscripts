@@ -7,6 +7,9 @@ api, then update all connected browsers.
 
 ## Usage
 
+Copy  the auth.example.json file to auth.json, and setup your credentials, this
+is to get around rate limiting.
+
 ```
 npm install
 node index.js <filename>

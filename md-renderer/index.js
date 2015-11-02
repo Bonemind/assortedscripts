@@ -4,7 +4,7 @@ var io = require('socket.io')(http);
 var gaze = require('gaze');
 var fs = require('fs');
 var needle = require('needle');
-
+var watchr = require('watchr');
 
 // URL to post markdown to
 var GITHUB_MD_URL = 'https://api.github.com/markdown';
@@ -26,8 +26,27 @@ if (!fs.lstatSync(filename).isFile()) {
 	process.exit(1);
 }
 
+//Read auth config
+var auth = JSON.parse(fs.readFileSync(__dirname + '/auth.json', 'utf8'));
+
 //Setup a watcher for the passed file
 var watcher = new gaze.Gaze(filename);
+
+watchr.watch({
+	paths: [filename],
+	listeners : {
+		watching: function(err, watcherInstance, isWatching) {
+			if (err) {
+				console.log("watching the path " + watcherInstance.path + " failed with error", err);
+			} else {
+				console.log("watching the path " + watcherInstance.path + " completed");
+			}
+		},
+		change: function(type, filepath, currentstat, prevstat) {
+			update(filename);
+		}
+	}
+});
 
 //Emit an updating event on change
 watcher.on('all', function(event, file) {
@@ -64,7 +83,7 @@ function update(file) {
 		var post_data = { text: data, mode: 'gfm', context: '' };
 
 		//Send a post request to github to transform to markdown
-		needle.request('post', GITHUB_MD_URL, post_data, {json: true}, 
+		needle.request('post', GITHUB_MD_URL, post_data, {json: true, username: auth.username, password: auth.app_token}, 
 			function(err, resp) {
 				if (err) {
 					io.emit('update', JSON.stringify(err));
