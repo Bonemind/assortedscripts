@@ -1,7 +1,7 @@
 var app = require('express')();
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
-var hound = require('hound');
+var gaze = require('gaze');
 var fs = require('fs');
 var needle = require('needle');
 
@@ -27,10 +27,10 @@ if (!fs.lstatSync(filename).isFile()) {
 }
 
 //Setup a watcher for the passed file
-var watcher = hound.watch(filename);
+var watcher = new gaze.Gaze(filename);
 
 //Emit an updating event on change
-watcher.on('change', function(file, stats) {
+watcher.on('all', function(event, file) {
 	update(file);
 	io.emit('updating', file);
 });
