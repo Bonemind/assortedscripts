@@ -43,7 +43,7 @@ class Formatter:
             try:
                 tag = tags[task_tags[task.find('taskId').text]]
             except KeyError:
-                tag = 'Onbekend'
+                tag = ''
 
             start = task.find('startDate').text
             end = task.find('endDate').text
