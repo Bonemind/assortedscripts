@@ -39,10 +39,17 @@ class Formatter:
         for task in root[1]:
             project = projects[task.find('projectId').text]['name']
             customer = projects[task.find('projectId').text]['customer']
-            tag = tags[task_tags[task.find('taskId').text]]
+            tag = ''
+            try:
+                tag = tags[task_tags[task.find('taskId').text]]
+            except KeyError:
+                tag = 'Onbekend'
+
             start = task.find('startDate').text
             end = task.find('endDate').text
-            desc = task.find('description').text.replace('\n', "")
+            desc = task.find('description').text
+            if desc:
+                desc = desc.replace('\n', "")
             print '{0};{1};{2};{3};{4};{5};'.format(start, end, customer, project, tag, desc)
 
 
