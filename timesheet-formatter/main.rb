@@ -5,17 +5,12 @@ require 'pp'
 require 'timerizer'
 require 'optparse'
 require 'terminal-table'
+require "google/api_client"
+require "google_drive"
 
-doc = File.open("hours.xml") { |f| Nokogiri::XML(f) }
 
 OUT_FOLDER = "./out"
 
-# Get arrays for required data
-projects = Hash.xml_node_to_hash(doc.xpath('//projects').first)[:project]
-tasks = Hash.xml_node_to_hash(doc.xpath('//tasks').first)[:task]
-breaks = Hash.xml_node_to_hash(doc.xpath('//breaks').first)[:break]
-tags = Hash.xml_node_to_hash(doc.xpath('//tags').first)[:tag]
-tasktags = Hash.xml_node_to_hash(doc.xpath('//taskTags').first)[:taskTag]
 # 2015-09-07T12:26:00+02:00;2015-09-07T12:43:00+02:00;Airexpressbus;API;;Dataontwerp;
 #
 
@@ -73,9 +68,12 @@ def export_bydate(tasks, start_date, end_date)
 	start_date_parsed = DateTime.parse(start_date).to_date
 	end_date_parsed = DateTime.parse(end_date).to_date
 
+	# Make end_date inclusive
+	end_date_shifted = 1.days.after(end_date_parsed).to_date
+
 	# Select only those dates
 	previous_week_tasks = tasks.select do |t|
-		next t[:startDate] >= start_date_parsed && t[:startDate] <= end_date_parsed
+		next t[:startDate] >= start_date_parsed && t[:startDate] <= end_date_shifted
 	end
 
 	# Write the csv
@@ -97,60 +95,119 @@ end
 
 
 
-# Build tasks with references
-tasks.each do |task|
+def process_xml(xml)
 
-	task[:startDate] = DateTime.parse(task[:startDate])
-	task[:endDate] = DateTime.parse(task[:endDate])
+	doc = Nokogiri::XML(xml)
+	# Get arrays for required data
+	projects = Hash.xml_node_to_hash(doc.xpath('//projects').first)[:project]
+	tasks = Hash.xml_node_to_hash(doc.xpath('//tasks').first)[:task]
+	breaks = Hash.xml_node_to_hash(doc.xpath('//breaks').first)[:break]
+	tags = Hash.xml_node_to_hash(doc.xpath('//tags').first)[:tag]
+	tasktags = Hash.xml_node_to_hash(doc.xpath('//taskTags').first)[:taskTag]
+	# Build tasks with references
+	tasks.each do |task|
 
-	task[:project] = projects.find{|hash| hash[:projectId] == task[:projectId]}
-	task[:breaks] = breaks.select{|hash| hash[:taskId] == task[:taskId]}
+		task[:startDate] = DateTime.parse(task[:startDate])
+		task[:endDate] = DateTime.parse(task[:endDate])
 
-	task[:breaks].map! do |b|
-		b[:startDate] = DateTime.parse(b[:startDate])
-		b[:endDate] = DateTime.parse(b[:endDate])
-		next b
+		task[:project] = projects.find{|hash| hash[:projectId] == task[:projectId]}
+		task[:breaks] = breaks.select{|hash| hash[:taskId] == task[:taskId]}
+
+		task[:breaks].map! do |b|
+			b[:startDate] = DateTime.parse(b[:startDate])
+			b[:endDate] = DateTime.parse(b[:endDate])
+			next b
+		end
+
+		taskTags = tasktags.select{|hash| hash[:taskId] == task[:taskId]}
+
+		task[:tags] = []
+		taskTags.each do |tt|
+			tag = tags.find{|hash| tt[:tagId] == hash[:tagId]}
+			task[:tags] << tag unless tag.nil?
+		end
 	end
 
-	taskTags = tasktags.select{|hash| hash[:taskId] == task[:taskId]}
+	# Split tasks if they have breaks
+	split_tasks = []
+	tasks.each do |task|
+		if task[:breaks].size == 0
+			split_tasks << task
+			next
+		end
 
-	task[:tags] = []
-	taskTags.each do |tt|
-		tag = tags.find{|hash| tt[:tagId] == hash[:tagId]}
-		task[:tags] << tag unless tag.nil?
+		breaks = task[:breaks].sort_by{ |b| b[:startDate] }
+		breaks.each_with_index do |b, i|
+			if i == 0
+				# First break, create a new task where the end time is the start time of the break
+				workingtask = task.clone
+				workingtask[:endDate] = b[:startDate]
+				split_tasks << workingtask
+			end
+			if i == breaks.size - 1
+				# Last break, create a new task where the start date is the end time of the last date
+				workingtask = task.clone
+				workingtask[:startDate] = b[:endDate]
+				split_tasks << workingtask
+			end
+
+			if i > 0 && i < breaks.size - 1
+				# No special break, create a new task that starts at the previous end date and the current start date
+				workingtask = task.clone
+				workingtask[:startDate] = breaks[i - 1][:endDate]
+				workingtask[:endDate] = breaks[i][:startDate]
+				split_tasks << workingtask
+			end
+		end
 	end
+	return tasks
 end
 
-# Split tasks if they have breaks
-split_tasks = []
-tasks.each do |task|
-	if task[:breaks].size == 0
-		split_tasks << task
-		next
+def get_file_xml(filename)
+	file = File.open(filename, "rb")
+	contents = file.read
+	return contents
+end
+
+
+def get_drive_export(filename)
+	# Creates a session. This will prompt the credential via command line for the
+	# first time and save it to config.json file for later usages.
+	session = GoogleDrive.saved_session("config.json")
+
+	# Gets list of remote files.
+	file = session.files("q" => "title contains '#{filename}'", "orderBy" => "createdDate desc").first
+	contents = file.download_to_string
+	return contents
+end
+
+
+def process_options(opts)
+	if opts[:file].nil? && opts[:drive].nil?
+		fail ArgumentError.new('Either a google drive name or file is required')
 	end
 
-	breaks = task[:breaks].sort_by{ |b| b[:startDate] }
-	breaks.each_with_index do |b, i|
-		if i == 0
-			# First break, create a new task where the end time is the start time of the break
-			workingtask = task.clone
-			workingtask[:endDate] = b[:startDate]
-			split_tasks << workingtask
-		end
-		if i == breaks.size - 1
-			# Last break, create a new task where the start date is the end time of the last date
-			workingtask = task.clone
-			workingtask[:startDate] = b[:endDate]
-			split_tasks << workingtask
-		end
+	unless opts[:file].nil? || opts[:drive].nil?
+		fail ArgumentError.new('Only one of file or google drive may be defined')
+	end
+	tasks = []
 
-		if i > 0 && i < breaks.size - 1
-			# No special break, create a new task that starts at the previous end date and the current start date
-			workingtask = task.clone
-			workingtask[:startDate] = breaks[i - 1][:endDate]
-			workingtask[:endDate] = breaks[i][:startDate]
-			split_tasks << workingtask
-		end
+	if opts[:file]
+		tasks = process_xml(get_file_xml(opts[:file]))
+	else
+		tasks = process_xml(get_drive_export(opts[:drive]))
+	end
+
+	fail StandardError.new('No tasks found in file') if tasks.size == 0
+
+	unless opts[:start_date].nil? && opts[:end_date].nil?
+		fail ArgumentError.new('Missing start or end date') if opts[:start_date].nil? || opts[:end_date].nil?
+	end
+	export_all(tasks) if opts[:all]
+	last_week_export(tasks) if opts[:week]
+
+	if opts[:start_date] && opts[:end_date]
+		export_bydate(tasks, opts[:start_date], opts[:end_date])
 	end
 end
 
@@ -177,22 +234,19 @@ OptionParser.new do |opts|
 		options[:week] = true
 	end
 
+	opts.on("-f", "--file [FILE]", "The filename to read") do |v|
+		options[:file] = nil if v === true
+		options[:file] = v
+	end
+
+	opts.on("-d", "--drive [SEARCH]", "The drive filename part to search for") do |v|
+		options[:drive] = nil if v === true
+		options[:drive] = v
+	end
+
 	opts.on_tail("-h", "--help", "Show this message") do
+		puts opts
 		exit
 	end
 end.parse!
-
-def process_options(tasks, opts)
-
-	unless opts[:start_date].nil? && opts[:end_date].nil?
-		fail ArgumentError.new('Missing start or end date') if opts[:start_date].nil? || opts[:end_date].nil?
-	end
-	export_all(tasks) if opts[:all]
-	last_week_export(tasks) if opts[:week]
-
-	if opts[:start_date] && opts[:end_date]
-		export_bydate(tasks, opts[:start_date], opts[:end_date])
-	end
-end
-
-process_options(split_tasks, options)
+process_options(options)
