@@ -280,7 +280,7 @@ OptionParser.new do |opts|
 		options[:drive] = v
 	end
 
-	opts.on("-m", "--mail", "Whether to send and email") do |v|
+	opts.on("-m", "--mail", "Whether to send an email") do |v|
 		options[:mail] = v
 	end
 

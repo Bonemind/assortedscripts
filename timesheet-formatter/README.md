@@ -2,8 +2,12 @@
 
 ### Setup
 
-clone the repo
+Clone the repo
+
 cd into timesheet-formatter
+
+(Optional) Copy `mail.example.json` to `mail.json` and configure where you want your mails sent.
+
 
 ```
 bundle install
@@ -25,9 +29,11 @@ Usage: main.rb [options]
     -w, --last-week                  Exports the previous week (Last sunday until monday before that)
     -f, --file [FILE]                The filename to read
     -d, --drive [SEARCH]             The drive filename part to search for
+    -m, --mail                       Whether to send an email
     -h, --help                       Show this message
+
 ```
-Exports will be written to `${pwd}/out`
+Exports will be written to `${cwd}/out`
 
 
 
