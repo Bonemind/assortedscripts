@@ -7,6 +7,7 @@ require 'optparse'
 require 'terminal-table'
 require "google/api_client"
 require "google_drive"
+require 'mailgun'
 
 
 OUT_FOLDER = "./out"
@@ -34,6 +35,7 @@ def as_csv(task_hash, filename)
 		file.write(lines.join("\r\n"))
 	end
 	puts "Wrote #{filename}"
+	return filename
 end
 
 def as_table(task_hash, filename)
@@ -57,11 +59,14 @@ def as_table(task_hash, filename)
 		file.write(table.to_s)
 	end
 	puts "Wrote #{filename}"
+	return filename
 end
 
 def export(tasks, filename)
-	as_csv(tasks, filename)
-	as_table(tasks, filename)
+	files = []
+	files << as_csv(tasks, filename)
+	files << as_table(tasks, filename)
+	return files
 end
 
 def export_bydate(tasks, start_date, end_date)
@@ -77,11 +82,11 @@ def export_bydate(tasks, start_date, end_date)
 	end
 
 	# Write the csv
-	export(previous_week_tasks, "#{start_date_parsed}-to-#{end_date_parsed}")
+	return export(previous_week_tasks, "#{start_date_parsed}-to-#{end_date_parsed}")
 end
 
 def export_all(tasks)
-	export(tasks, "all-#{DateTime.now}")
+	return export(tasks, "all-#{DateTime.now}")
 end
 
 def last_week_export(tasks)
@@ -200,15 +205,46 @@ def process_options(opts)
 
 	fail StandardError.new('No tasks found in file') if tasks.size == 0
 
+	files = []
 	unless opts[:start_date].nil? && opts[:end_date].nil?
 		fail ArgumentError.new('Missing start or end date') if opts[:start_date].nil? || opts[:end_date].nil?
 	end
-	export_all(tasks) if opts[:all]
-	last_week_export(tasks) if opts[:week]
+	files = files + export_all(tasks) if opts[:all]
+	files = files + last_week_export(tasks) if opts[:week]
 
 	if opts[:start_date] && opts[:end_date]
-		export_bydate(tasks, opts[:start_date], opts[:end_date])
+		files = files + export_bydate(tasks, opts[:start_date], opts[:end_date])
 	end
+
+	if opts[:mail]
+		puts 'mailing'
+		# send_mail(files)
+	end
+end
+
+def send_mail(files)
+	file = File.open('mail.json', "rb")
+	contents = file.read
+	settings = JSON.parse(contents)
+	client = Mailgun::Client.new settings["key"]
+	message = Mailgun::MessageBuilder.new
+	message.set_from_address(settings["from"])
+	message.set_subject(settings["subject"])
+	message.set_text_body(settings["body"])
+	settings["to"].each do |to|
+
+		if settings["to"].first == to
+			message.add_recipient(:to, to)
+		else
+			message.add_recipient(:cc, to)
+		end
+	end
+	files.each do |f|
+		message.add_attachment(f)
+	end
+
+	client.send_message settings["domain"], message
+	puts 'Mail sent'
 end
 
 
@@ -242,6 +278,10 @@ OptionParser.new do |opts|
 	opts.on("-d", "--drive [SEARCH]", "The drive filename part to search for") do |v|
 		options[:drive] = nil if v === true
 		options[:drive] = v
+	end
+
+	opts.on("-m", "--mail", "Whether to send and email") do |v|
+		options[:mail] = v
 	end
 
 	opts.on_tail("-h", "--help", "Show this message") do

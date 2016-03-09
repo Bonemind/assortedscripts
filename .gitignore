@@ -3,4 +3,5 @@ hours.xml
 node_modules
 auth.json
 config.json
+mail.json
 out/
