@@ -11,6 +11,7 @@ GEM
       method_source (~> 0.8.1)
       slop (~> 3.4)
     slop (3.6.0)
+    terminal-table (1.5.2)
     timerizer (0.1.4)
 
 PLATFORMS
@@ -19,6 +20,7 @@ PLATFORMS
 DEPENDENCIES
   nokogiri
   pry
+  terminal-table
   timerizer
 
 BUNDLED WITH

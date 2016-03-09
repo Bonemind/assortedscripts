@@ -4,6 +4,7 @@ require './nokogiri_to_hash'
 require 'pp'
 require 'timerizer'
 require 'optparse'
+require 'terminal-table'
 
 doc = File.open("hours.xml") { |f| Nokogiri::XML(f) }
 
@@ -40,8 +41,32 @@ def as_csv(task_hash, filename)
 	puts "Wrote #{filename}"
 end
 
+def as_table(task_hash, filename)
+	# Write a table of the data
+	header = 'starts_at;ends_at;relation;order;sub_order;description'
+	lines = []
+	task_hash.each do |task|
+		line = []
+		line << task[:startDate]
+		line << task[:endDate]
+		line << task[:project][:employer]
+		line << task[:project][:name]
+		line << task[:tags].map{|t| t[:name]}.join(',')
+		line << task[:description]
+		lines << line
+	end
+	table = Terminal::Table.new :rows => lines, headings: header.split(';')
+
+	filename = OUT_FOLDER + "/#{filename}.table"
+	File.open(filename, 'w') do |file|
+		file.write(table.to_s)
+	end
+	puts "Wrote #{filename}"
+end
+
 def export(tasks, filename)
 	as_csv(tasks, filename)
+	as_table(tasks, filename)
 end
 
 def export_bydate(tasks, start_date, end_date)
@@ -153,13 +178,11 @@ OptionParser.new do |opts|
 	end
 
 	opts.on_tail("-h", "--help", "Show this message") do
-		puts opts
 		exit
 	end
 end.parse!
 
 def process_options(tasks, opts)
-	puts opts
 
 	unless opts[:start_date].nil? && opts[:end_date].nil?
 		fail ArgumentError.new('Missing start or end date') if opts[:start_date].nil? || opts[:end_date].nil?
