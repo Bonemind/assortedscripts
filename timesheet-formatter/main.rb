@@ -3,6 +3,7 @@ require 'pry'
 require './nokogiri_to_hash'
 require 'pp'
 require 'timerizer'
+require 'optparse'
 
 doc = File.open("hours.xml") { |f| Nokogiri::XML(f) }
 
@@ -128,6 +129,47 @@ tasks.each do |task|
 	end
 end
 
-export_all(split_tasks)
-last_week_export(split_tasks)
-binding.pry
+
+options = {}
+OptionParser.new do |opts|
+	opts.banner = "Usage: main.rb [options]"
+
+	opts.on("-a", "--all", "Export all time") do |v|
+		options[:all] = true
+	end
+
+	opts.on("-s", "--start [DATE]", "Export start date, requires end date as well") do |v|
+		options[:start_date] = nil if v === true
+		options[:start_date] = v unless v === true
+	end
+
+	opts.on("-e", "--end [DATE]", "Export end date, requires start date as well") do |v|
+		options[:end_date] = nil if v === true
+		options[:end_date] = v unless v === true
+	end
+
+	opts.on("-w", "--last-week", "Exports the previous week (Last sunday until monday before that)") do |v|
+		options[:week] = true
+	end
+
+	opts.on_tail("-h", "--help", "Show this message") do
+		puts opts
+		exit
+	end
+end.parse!
+
+def process_options(tasks, opts)
+	puts opts
+
+	unless opts[:start_date].nil? && opts[:end_date].nil?
+		fail ArgumentError.new('Missing start or end date') if opts[:start_date].nil? || opts[:end_date].nil?
+	end
+	export_all(tasks) if opts[:all]
+	last_week_export(tasks) if opts[:week]
+
+	if opts[:start_date] && opts[:end_date]
+		export_bydate(tasks, opts[:start_date], opts[:end_date])
+	end
+end
+
+process_options(split_tasks, options)
