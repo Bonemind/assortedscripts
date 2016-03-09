@@ -30,11 +30,15 @@ def as_csv(task_hash, filename)
 		line << task[:description]
 		lines << line.join(';')
 	end
+
+	# Write data to file
 	filename = OUT_FOLDER + "/#{filename}.csv"
 	File.open(filename, 'w') do |file|
 		file.write(lines.join("\r\n"))
 	end
 	puts "Wrote #{filename}"
+
+	# Return filename
 	return filename
 end
 
@@ -54,6 +58,7 @@ def as_table(task_hash, filename)
 	end
 	table = Terminal::Table.new :rows => lines, headings: header.split(';')
 
+	# Write data to file
 	filename = OUT_FOLDER + "/#{filename}.table"
 	File.open(filename, 'w') do |file|
 		file.write(table.to_s)
@@ -63,6 +68,7 @@ def as_table(task_hash, filename)
 end
 
 def export(tasks, filename)
+	# Calls multiple export method and returns the filenames generated
 	files = []
 	files << as_csv(tasks, filename)
 	files << as_table(tasks, filename)
@@ -70,6 +76,7 @@ def export(tasks, filename)
 end
 
 def export_bydate(tasks, start_date, end_date)
+	# Exports tasks between two dates
 	start_date_parsed = DateTime.parse(start_date).to_date
 	end_date_parsed = DateTime.parse(end_date).to_date
 
@@ -217,20 +224,26 @@ def process_options(opts)
 	end
 
 	if opts[:mail]
-		puts 'mailing'
-		# send_mail(files)
+		send_mail(files)
 	end
 end
 
 def send_mail(files)
+	# Read mailing config
 	file = File.open('mail.json', "rb")
 	contents = file.read
 	settings = JSON.parse(contents)
+
+	# Setup client
 	client = Mailgun::Client.new settings["key"]
+
+	# Create messagebuilder
 	message = Mailgun::MessageBuilder.new
 	message.set_from_address(settings["from"])
 	message.set_subject(settings["subject"])
 	message.set_text_body(settings["body"])
+
+	# Add all recipients
 	settings["to"].each do |to|
 
 		if settings["to"].first == to
@@ -239,6 +252,8 @@ def send_mail(files)
 			message.add_recipient(:cc, to)
 		end
 	end
+
+	# Add all files
 	files.each do |f|
 		message.add_attachment(f)
 	end
