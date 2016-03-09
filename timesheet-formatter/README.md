@@ -35,5 +35,15 @@ Usage: main.rb [options]
 ```
 Exports will be written to `${cwd}/out`
 
+### Cron
+
+To run this script in a cronjob add something like the following to crontab:
+
+```
+ 0 6 * * 1 /bin/bash -l -c 'cd <timesheet-formatter dir> && ./run.sh'
+```
+
+This will run the timesheet formatter every monday at 6am and send an email with the output
+
 
 
