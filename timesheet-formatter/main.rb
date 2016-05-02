@@ -172,7 +172,7 @@ def process_xml(xml)
 			end
 		end
 	end
-	return tasks
+	return split_tasks
 end
 
 def get_file_xml(filename)
