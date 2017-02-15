@@ -1,4 +1,4 @@
 {
-  "client_id": "xxxxxxxxxxxxxxx",
-  "client_secret": "xxxxxxxxxxx",
+	"nma_apikey": "xxxx",
+	"sheet_id": "xxx"
 }
