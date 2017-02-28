@@ -1,3 +1,4 @@
+#!/usr/local/bin/ruby -w
 # Time by msec by default
 # This denotes ticks per second
 tps = 1000
@@ -23,11 +24,15 @@ end
 # Loop while not killed
 # print on every loop
 while true do
-	ms = ms + 1
-	if ms >= tps
-		s = s + (ms / tps).floor
-		ms = 0
+	begin
+		ms = ms + 1
+		if ms >= tps
+			s = s + (ms / tps).floor
+			ms = 0
+		end
+		printtime(s, ms)
+		sleep(1.0 / tps)
+	rescue Exception
+		exit()
 	end
-	printtime(s, ms)
-	sleep(1.0 / tps)
 end
