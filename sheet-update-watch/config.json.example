@@ -1,4 +1,5 @@
 {
-	"nma_apikey": "xxxx",
+	"pushover_apikey": "xxxx",
+	"pushover_userkey": "xxxx",
 	"sheet_id": "xxx"
 }

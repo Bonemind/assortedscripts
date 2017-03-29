@@ -1,7 +1,7 @@
 ## Sheet watcher
 
 A buildable docker image that watches a google sheet and sends
-notifications through notifymyandroid if nothing was filled in.
+notifications through pushover if nothing was filled in.
 
 ### Setup
 
