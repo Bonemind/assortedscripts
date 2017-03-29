@@ -7,19 +7,19 @@ BACKUPDIR=$1
 
 source $2
 
-export ATTIC_PASSPHRASE=$3
+export BORG_PASSPHRASE=$3
 
 if [ ! -d "$BACKUPDIR" ]; then
 	mkdir $BACKUPDIR
+	/usr/local/bin/borg --version > "$BACKUPDIR/borg_version"
 fi
 for i in "${!folders[@]}"
 do
-	echo "${folders[$i]}"
 	if [ ! -d "$BACKUPDIR/$i" ]; then
-		/usr/local/bin/attic init "$BACKUPDIR/$i" -e passphrase
+		/usr/local/bin/borg init "$BACKUPDIR/$i" -e repokey
 	fi
-	/usr/local/bin/attic create --stats "$BACKUPDIR/$i::"`date +%Y-%m-%d-%H-%M-%S` \
+	/usr/local/bin/borg create "$BACKUPDIR/$i::"`date +%Y-%m-%d-%H-%M-%S` \
 		${folders[$i]}
-	/usr/local/bin/attic prune -v "$BACKUPDIR/$i" --keep-hourly=4 --keep-daily=7 --keep-weekly=4 --keep-monthly=6
+	/usr/local/bin/borg prune  "$BACKUPDIR/$i" --keep-hourly=4 --keep-daily=7 --keep-weekly=4 --keep-monthly=6
 done
 

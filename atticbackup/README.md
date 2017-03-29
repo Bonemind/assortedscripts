@@ -1,4 +1,4 @@
-# AtticBackup
+# BorgBackup
 
 
 Script that takes an associative array of names an paths, loops through them and backs up every path
