@@ -15,3 +15,11 @@ Backupdir: The directory all repositories will be stored in
 Assoc-array file: File that gets sourced to determine what to backup where. See folders.sh
 Passphrase: Passphrase used to encrypt the backups
 ```
+
+In addition, there's a b2 upload script:
+```
+./b2backup.sh <Backup dir> <File containing associative array>
+
+Backupdir: The directory all repositories will be stored in
+Assoc-array file: File that gets sourced to determine what to backup where. See folders.sh
+```
